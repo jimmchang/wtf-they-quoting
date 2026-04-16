@@ -1,0 +1,4 @@
+packages:
+  - collector
+  - server
+  - web

@@ -1,0 +1,18 @@
+{
+  "name": "wtf-they-quoting",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "pull:daily": "pnpm --filter collector daily",
+    "pull:adhoc": "pnpm --filter collector adhoc",
+    "server": "pnpm --filter server dev",
+    "web": "pnpm --filter web dev",
+    "dev": "concurrently -k \"pnpm server\" \"pnpm web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "typescript": "^5.6.0"
+  }
+}

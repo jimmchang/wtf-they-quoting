@@ -1,0 +1,14 @@
+{
+  "chains": [1, 8453, 42161],
+  "assetPairs": [
+    { "name": "USDC-USDC", "from": "USDC", "to": "USDC", "sizes": [10, 100, 1000, 10000] },
+    { "name": "USDT-USDT", "from": "USDT", "to": "USDT", "sizes": [10, 100, 1000, 10000] },
+    { "name": "ETH-ETH",   "from": "ETH",  "to": "ETH",  "sizes": [0.01, 0.1, 1] },
+    { "name": "WETH-ETH",  "from": "WETH", "to": "ETH",  "sizes": [0.01, 0.1, 1] }
+  ],
+  "crossChainOnly": true,
+  "rateLimitRps": 1,
+  "defaultSlippage": 0.005,
+  "quoteTimeoutMs": 30000,
+  "alternativesTopN": 20
+}
