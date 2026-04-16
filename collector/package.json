@@ -1,0 +1,25 @@
+{
+  "name": "collector",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "daily": "tsx src/daily.ts",
+    "adhoc": "tsx src/adhoc.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lifi/sdk": "^3.5.0",
+    "better-sqlite3": "^11.3.0",
+    "commander": "^12.1.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
