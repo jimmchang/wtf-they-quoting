@@ -2,7 +2,7 @@ import { ulid } from "ulid";
 import type { Database as DB } from "better-sqlite3";
 import type { RouteRequest, OfferFetchResult, RunKind, OfferRow, RequestRow, Address, ChainId } from "./types.js";
 import { insertRequestWithOffers } from "./db.js";
-import { rankOffers } from "./lifi.js";
+import { rankOffers, LIFI_INTENT_TOOL } from "./lifi.js";
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -11,8 +11,8 @@ export interface RunMatrixOpts {
   routes: RouteRequest[];
   runKind: RunKind;
   rateLimitRps: number;
+  topN: number;
   resolveToken: (chainId: ChainId, symbol: string) => Promise<Address>;
-  fetchIntent: (r: RouteRequest) => Promise<OfferFetchResult>;
   fetchAlternatives: (r: RouteRequest) => Promise<OfferFetchResult[]>;
   onProgress?: (done: number, total: number) => void;
 }
@@ -34,20 +34,47 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
   for (let i = 0; i < opts.routes.length; i++) {
     const r = opts.routes[i]!;
     const ts = Date.now();
-    const [fromToken, toToken] = await Promise.all([
-      opts.resolveToken(r.fromChain, r.fromSymbol),
-      opts.resolveToken(r.toChain, r.toSymbol),
-    ]);
+
+    let fromToken: Address, toToken: Address;
+    try {
+      [fromToken, toToken] = await Promise.all([
+        opts.resolveToken(r.fromChain, r.fromSymbol),
+        opts.resolveToken(r.toChain, r.toSymbol),
+      ]);
+    } catch (e: any) {
+      const req: RequestRow = {
+        run_id: runId, run_kind: opts.runKind, ts,
+        from_chain: r.fromChain, to_chain: r.toChain, pair_name: r.pairName,
+        from_symbol: r.fromSymbol, to_symbol: r.toSymbol,
+        from_token: "0x" as Address, to_token: "0x" as Address,
+        from_amount: "0", from_amount_hr: r.fromAmountHr,
+        intent_rank: null, best_to_amount_hr: null, intent_to_amount_hr: null,
+        delta_hr: null, delta_bps: null, alt_count: 0,
+        latency_intent_ms: null, latency_alts_ms: null,
+        status: "error", error_message: `token resolution: ${e.message}`,
+      };
+      insertRequestWithOffers(opts.db, req, []);
+      err++;
+      opts.onProgress?.(i + 1, opts.routes.length);
+      if (i < opts.routes.length - 1) await sleep(delay);
+      continue;
+    }
+
     const dec = r.fromSymbol.toUpperCase().startsWith("USD") ? 6 : 18;
     const fromAmount = BigInt(Math.round(r.fromAmountHr * 10 ** dec)).toString();
 
-    const [intentResult, altsResult] = await Promise.all([
-      opts.fetchIntent(r),
-      opts.fetchAlternatives(r),
-    ]);
+    const allOffers = await opts.fetchAlternatives(r);
+    const callLatencyMs = allOffers.length > 0
+      ? Math.max(...allOffers.map(a => a.latencyMs))
+      : null;
 
-    const intentOk = intentResult.ok;
-    const altsOk = altsResult.some(a => a.ok);
+    const intentResult = allOffers.find(a => a.ok && a.tool === LIFI_INTENT_TOOL);
+    const goodAlts = allOffers
+      .filter(a => a.ok && a.tool !== LIFI_INTENT_TOOL)
+      .slice(0, opts.topN);
+
+    const intentOk = intentResult !== undefined;
+    const altsOk = goodAlts.length > 0;
     const status: "ok" | "partial" | "error" =
       intentOk && altsOk ? "ok"
       : !intentOk && !altsOk ? "error"
@@ -60,9 +87,7 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
     let deltaBps: number | null = null;
     const offerRows: Omit<OfferRow, "request_id">[] = [];
 
-    const goodAlts = altsResult.filter(a => a.ok);
-
-    if (intentOk && goodAlts.length > 0) {
+    if (intentOk && intentResult && goodAlts.length > 0) {
       const ranked = rankOffers(intentResult, goodAlts);
       intentRank = ranked.intentRank;
       bestAmt = ranked.best_to_amount_hr;
@@ -86,7 +111,7 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
       }
     } else {
       // partial or error: store whatever succeeded
-      if (intentOk) {
+      if (intentOk && intentResult) {
         offerRows.push({
           source: "intent", rank_by_to_amount: null,
           tool: intentResult.tool ?? null,
@@ -126,13 +151,11 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
       intent_to_amount_hr: intentAmt,
       delta_hr: deltaHr, delta_bps: deltaBps,
       alt_count: goodAlts.length,
-      latency_intent_ms: intentResult.latencyMs,
-      latency_alts_ms: altsResult.length > 0
-        ? Math.max(...altsResult.map(a => a.latencyMs))
-        : null,
+      latency_intent_ms: null,
+      latency_alts_ms: callLatencyMs,
       status,
       error_message: status === "error"
-        ? [intentResult.errorMessage, altsResult[0]?.errorMessage].filter(Boolean).join("; ")
+        ? allOffers[0]?.errorMessage ?? "no offers returned"
         : null,
     };
 

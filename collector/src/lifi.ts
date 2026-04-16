@@ -1,30 +1,28 @@
-// LIFI_INTENT_CMD:  npx @lifi/cli quote --from <chain> --to <chain> --from-token <addr> --to-token <addr> --amount <baseUnits> --from-address <addr> --json
-// LIFI_INTENT_JSON: --json flag supported; stdout is clean JSON when flag is set
-// LIFI_ALTS_ORDER:  SDK getRoutes with options.order = "RECOMMENDED"
-//
-// CLI verification (Part A findings):
-//   - `lifi quote --json` produces clean JSON to stdout (no ANSI, no extra lines)
-//   - `lifi routes` requires a non-zero --from-address and fails with zero address
-//   - SDK getRoutes works without a fromAddress and returns routes[] array
-//   - Intent uses CLI subprocess; alternatives use SDK getRoutes
+// LIFI_ALTS_SOURCE: SDK getRoutes with options.order = "RECOMMENDED"
+// LIFI_INTENT_TOOL: "lifiIntents" — the lifiIntents offer is extracted from getRoutes results;
+//                   no separate CLI call. Compare lifiIntents vs the best non-lifiIntents offer.
 //
 // Fixture field paths (confirmed against live responses):
-//   Intent  (lifi quote --json):
-//     top-level: .tool  .estimate.toAmount (string)  .estimate.toAmountUSD
-//                .estimate.feeCosts[].amountUSD  .estimate.gasCosts[].amountUSD
-//     decimals:  .action.toToken.decimals
 //   Routes  (SDK getRoutes):
 //     .routes[].toAmount (integer)  .routes[].gasCostUSD  .routes[].toToken.decimals
 //     step tool: .routes[].steps[0].tool  .routes[].steps[0].toolDetails.key
 //     step amt:  .routes[].steps[0].estimate.toAmount (integer)
 
-import { getRoutes, getQuote } from "@lifi/sdk";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import type { OfferFetchResult, RouteRequest, Address } from "./types.js";
+import { getRoutes, createConfig } from "@lifi/sdk";
+import type { OfferFetchResult, RouteRequest } from "./types.js";
 import type { TokenResolver } from "./tokens.js";
 
-const execFileAsync = promisify(execFile);
+let _sdkReady = false;
+function ensureSdkConfig() {
+  if (_sdkReady) return;
+  createConfig({
+    integrator: process.env.INTEGRATOR_STRING ?? "wtf-they-quoting",
+    apiKey: process.env.NEXT_PUBLIC_LIFI_API_KEY,
+  });
+  _sdkReady = true;
+}
+
+export const LIFI_INTENT_TOOL = "lifiIntents";
 
 function guessDecimals(symbol: string): number {
   const s = symbol.toUpperCase();
@@ -34,45 +32,6 @@ function guessDecimals(symbol: string): number {
 }
 
 // ── Parse helpers ──────────────────────────────────────────────
-
-/**
- * Parse the JSON output of `lifi quote --json`.
- *
- * Top-level shape:
- *   { tool, action: { toToken: { decimals } }, estimate: { toAmount, toAmountUSD, feeCosts[], gasCosts[] } }
- */
-export function parseIntentResponse(raw: string, latencyMs: number): OfferFetchResult {
-  try {
-    const j = JSON.parse(raw);
-    const estimate = j.estimate ?? {};
-    const decimals: number =
-      j.action?.toToken?.decimals ??
-      estimate.toToken?.decimals ??
-      6;
-    const toAmountRaw = estimate.toAmount;
-    const toAmountHr =
-      toAmountRaw != null ? Number(toAmountRaw) / 10 ** decimals : undefined;
-    const feeUsd = Array.isArray(estimate.feeCosts)
-      ? estimate.feeCosts.reduce((s: number, f: any) => s + Number(f.amountUSD ?? 0), 0)
-      : undefined;
-    const gasCostUsd = Array.isArray(estimate.gasCosts)
-      ? estimate.gasCosts.reduce((s: number, g: any) => s + Number(g.amountUSD ?? 0), 0)
-      : undefined;
-    return {
-      ok: true,
-      toAmount: String(toAmountRaw ?? ""),
-      toAmountHr,
-      toAmountUsd: estimate.toAmountUSD != null ? Number(estimate.toAmountUSD) : undefined,
-      gasCostUsd,
-      feeUsd,
-      tool: j.tool ?? j.toolDetails?.key,
-      rawJson: raw,
-      latencyMs,
-    };
-  } catch (e: any) {
-    return { ok: false, errorMessage: `parse error: ${e.message}`, rawJson: raw, latencyMs };
-  }
-}
 
 /**
  * Parse the JSON output of SDK getRoutes.
@@ -115,75 +74,13 @@ export function parseRoutesResponse(raw: string, latencyMs: number): OfferFetchR
 // ── Fetch functions ────────────────────────────────────────────
 
 /**
- * Fetch the best single quote via the LI.FI CLI (`lifi quote --json`).
- * Falls back to SDK getQuote if the CLI is unavailable.
- */
-export async function fetchIntent(
-  req: RouteRequest,
-  resolver: TokenResolver,
-  opts: { slippage: number; timeoutMs: number }
-): Promise<OfferFetchResult> {
-  const fromToken = await resolver.resolve(req.fromChain, req.fromSymbol);
-  const toToken = await resolver.resolve(req.toChain, req.toSymbol);
-  const dec = guessDecimals(req.fromSymbol);
-  const fromAmount = BigInt(Math.round(req.fromAmountHr * 10 ** dec)).toString();
-  const t0 = Date.now();
-
-  try {
-    const cliResult = await Promise.race([
-      execFileAsync("npx", [
-        "@lifi/cli",
-        "quote",
-        "--from", String(req.fromChain),
-        "--to", String(req.toChain),
-        "--from-token", fromToken,
-        "--to-token", toToken,
-        "--amount", fromAmount,
-        "--from-address", "0x0000000000000000000000000000000000000001",
-        "--json",
-      ], { timeout: opts.timeoutMs }),
-      new Promise<never>((_, rej) =>
-        setTimeout(() => rej(new Error("intent timeout")), opts.timeoutMs)
-      ),
-    ]);
-    // stdout contains the JSON; stderr may have spinner text
-    const raw = cliResult.stdout.trim();
-    return parseIntentResponse(raw, Date.now() - t0);
-  } catch (cliErr: any) {
-    // CLI unavailable or timed out — fall back to SDK
-    try {
-      const result = await Promise.race([
-        getQuote({
-          fromChain: req.fromChain,
-          toChain: req.toChain,
-          fromToken,
-          toToken,
-          fromAmount,
-          fromAddress: "0x0000000000000000000000000000000000000001" as Address,
-        } as any),
-        new Promise<never>((_, rej) =>
-          setTimeout(() => rej(new Error("intent sdk timeout")), opts.timeoutMs)
-        ),
-      ]);
-      return parseIntentResponse(JSON.stringify(result), Date.now() - t0);
-    } catch (e: any) {
-      return {
-        ok: false,
-        errorMessage: `cli: ${cliErr.message}; sdk: ${e.message}`,
-        rawJson: JSON.stringify({ error: e.message }),
-        latencyMs: Date.now() - t0,
-      };
-    }
-  }
-}
-
-/**
- * Fetch route alternatives via SDK getRoutes, sorted by toAmountHr descending.
+ * Fetch all routes via SDK getRoutes (includes lifiIntents when available).
+ * The runner splits results into intent (tool === LIFI_INTENT_TOOL) vs alternatives.
  */
 export async function fetchAlternatives(
   req: RouteRequest,
   resolver: TokenResolver,
-  opts: { slippage: number; timeoutMs: number; topN: number }
+  opts: { slippage: number; timeoutMs: number }
 ): Promise<OfferFetchResult[]> {
   const fromToken = await resolver.resolve(req.fromChain, req.fromSymbol);
   const toToken = await resolver.resolve(req.toChain, req.toSymbol);
@@ -191,6 +88,7 @@ export async function fetchAlternatives(
   const fromAmount = BigInt(Math.round(req.fromAmountHr * 10 ** dec)).toString();
   const t0 = Date.now();
 
+  ensureSdkConfig();
   try {
     const result = await Promise.race([
       getRoutes({
@@ -208,8 +106,7 @@ export async function fetchAlternatives(
     const latencyMs = Date.now() - t0;
     return parseRoutesResponse(JSON.stringify(result), latencyMs)
       .filter(o => o.ok)
-      .sort((a, b) => (b.toAmountHr ?? 0) - (a.toAmountHr ?? 0))
-      .slice(0, opts.topN);
+      .sort((a, b) => (b.toAmountHr ?? 0) - (a.toAmountHr ?? 0));
   } catch (e: any) {
     return [{
       ok: false,

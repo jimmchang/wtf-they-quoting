@@ -25,9 +25,13 @@ export function SizeSelector(props: {
   }, [props.pair, props.fromChain, props.toChain]);
 
   return (
-    <label>
-      Size:{" "}
-      <select value={props.current} onChange={e => props.onChange(Number(e.target.value))}>
+    <label className="flex items-center gap-2 text-xs text-[--color-muted-foreground]">
+      <span className="uppercase tracking-wider font-medium">Size</span>
+      <select
+        value={props.current}
+        onChange={e => props.onChange(Number(e.target.value))}
+        className="bg-[--color-muted] border border-[--color-border] rounded px-2 py-1 font-mono text-xs text-[--color-foreground] focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
+      >
         {sizes.map(s => (
           <option key={s} value={s}>{s}</option>
         ))}

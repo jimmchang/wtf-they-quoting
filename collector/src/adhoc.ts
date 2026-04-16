@@ -1,9 +1,13 @@
+import { config as loadEnv } from "dotenv";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+loadEnv({ path: join(dirname(fileURLToPath(import.meta.url)), "../../.env") });
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { expandRoutes } from "./routes.js";
 import { openDb } from "./db.js";
 import { createTokenResolver } from "./tokens.js";
-import { fetchIntent, fetchAlternatives } from "./lifi.js";
+import { fetchAlternatives } from "./lifi.js";
 import { runMatrix } from "./runner.js";
 import type { RouteFilter } from "./routes.js";
 
@@ -32,9 +36,9 @@ const opts = { slippage: cfg.defaultSlippage, timeoutMs: cfg.quoteTimeoutMs };
 console.log(`adhoc run: ${routes.length} requests`);
 const summary = await runMatrix({
   db, routes, runKind: "adhoc", rateLimitRps: cfg.rateLimitRps,
+  topN: cfg.alternativesTopN,
   resolveToken: (c, s) => resolver.resolve(c, s),
-  fetchIntent: r => fetchIntent(r, resolver, opts),
-  fetchAlternatives: r => fetchAlternatives(r, resolver, { ...opts, topN: cfg.alternativesTopN }),
+  fetchAlternatives: r => fetchAlternatives(r, resolver, opts),
   onProgress: (d, t) => process.stdout.write(`\r${d}/${t}  `),
 });
 console.log(`\n${summary.runId}: ok=${summary.ok} partial=${summary.partial} err=${summary.err} ${summary.wallMs}ms`);

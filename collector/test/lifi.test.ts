@@ -2,21 +2,11 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseIntentResponse, parseRoutesResponse, rankOffers } from "../src/lifi.js";
+import { parseRoutesResponse, rankOffers, LIFI_INTENT_TOOL } from "../src/lifi.js";
 import type { OfferFetchResult } from "../src/types.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const intentRaw = readFileSync(join(here, "fixtures/intent-response.json"), "utf8");
 const routesRaw = readFileSync(join(here, "fixtures/routes-response.json"), "utf8");
-
-describe("parseIntentResponse", () => {
-  it("extracts to_amount and tool from fixture", () => {
-    const r = parseIntentResponse(intentRaw, 900);
-    expect(r.ok).toBe(true);
-    expect(r.toAmountHr).toBeGreaterThan(0);
-    expect(r.latencyMs).toBe(900);
-  });
-});
 
 describe("parseRoutesResponse", () => {
   it("returns array of ok offers", () => {
@@ -24,6 +14,13 @@ describe("parseRoutesResponse", () => {
     expect(offers.length).toBeGreaterThan(0);
     expect(offers[0]!.ok).toBe(true);
     expect(offers[0]!.toAmountHr).toBeGreaterThan(0);
+  });
+
+  it("exposes tool field for each offer", () => {
+    const offers = parseRoutesResponse(routesRaw, 500);
+    for (const o of offers) {
+      if (o.ok) expect(typeof o.tool).toBe("string");
+    }
   });
 });
 
