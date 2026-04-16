@@ -31,13 +31,6 @@ function RankBadge({ rank }: { rank: number | null }) {
   );
 }
 
-function StatusDot({ status }: { status: string }) {
-  const cls =
-    status === "ok"      ? "bg-[--color-accent]" :
-    status === "partial" ? "bg-[--color-accent-amber]" :
-                           "bg-[--color-accent-red]";
-  return <span className={cn("inline-block w-1.5 h-1.5 rounded-full", cls)} />;
-}
 
 function formatTs(ts: number) {
   return new Date(ts).toLocaleString("en-US", {
@@ -143,7 +136,7 @@ export default function Snapshot() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[--color-border] bg-[--color-muted]">
-              {["Pair", "Route", "Size", "Rank", "Δ bps", "Intent tool", "Best tool", "Alts", "Status", ""].map(h => (
+              {["Pair", "Route", "Size", "Rank", "Δ bps", "Intent quote", "Best quote", "Best tool", "Alts", ""].map(h => (
                 <th key={h} className="text-left px-3 py-2 text-xs font-medium text-[--color-muted-foreground] uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
@@ -174,15 +167,16 @@ export default function Snapshot() {
                     : <span className="text-[--color-muted-foreground]">—</span>
                   }
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-[--color-muted-foreground]">{r.intent_tool ?? "—"}</td>
-                <td className="px-3 py-2 font-mono text-xs text-[--color-muted-foreground]">{r.best_tool ?? "—"}</td>
-                <td className="px-3 py-2 font-mono text-xs text-right tabular-nums text-[--color-muted-foreground]">{r.alt_count}</td>
-                <td className="px-3 py-2">
-                  <span className="flex items-center gap-1.5">
-                    <StatusDot status={r.status} />
-                    <span className="text-xs font-mono text-[--color-muted-foreground]">{r.status}</span>
-                  </span>
+                <td className="px-3 py-2 font-mono text-xs text-right tabular-nums">
+                  {r.intent_to_amount_hr != null ? r.intent_to_amount_hr.toFixed(4) : <span className="text-[--color-muted-foreground]">—</span>}
                 </td>
+                <td className="px-3 py-2 font-mono text-xs text-right tabular-nums">
+                  {r.best_to_amount_hr != null ? r.best_to_amount_hr.toFixed(4) : <span className="text-[--color-muted-foreground]">—</span>}
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-[--color-muted-foreground]">
+                  {r.best_tool ?? (r.intent_rank === 1 ? "lifiIntents" : "—")}
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-right tabular-nums text-[--color-muted-foreground]">{r.alt_count}</td>
                 <td className="px-3 py-2">
                   <Link
                     to={`/route?pair=${encodeURIComponent(r.pair_name)}&from=${r.from_chain}&to=${r.to_chain}&size=${r.from_amount_hr}`}
@@ -195,7 +189,7 @@ export default function Snapshot() {
             ))}
             {filtered.length === 0 && !loading && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-sm text-[--color-muted-foreground]">
+                <td colSpan={9} className="px-3 py-8 text-center text-sm text-[--color-muted-foreground]">
                   {rows.length === 0
                     ? <>No data yet. Run <code className="font-mono bg-[--color-muted] px-1 rounded">pnpm pull:adhoc</code> to collect quotes.</>
                     : "No rows match the current filters."}
@@ -211,7 +205,7 @@ export default function Snapshot() {
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[--color-accent] inline-block" /> Rank #1 (intent wins)</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[--color-accent-amber] inline-block" /> Rank #2–3</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[--color-accent-red] inline-block" /> Rank #4+</span>
-        <span className="ml-2">Δ bps = how far intent output trails the best offer</span>
+        <span className="ml-2">Δ bps = how far lifiIntents trails the best offer</span>
       </div>
     </div>
   );

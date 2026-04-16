@@ -110,7 +110,24 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
         });
       }
     } else {
-      // partial or error: store whatever succeeded
+      // partial or error: still rank alts so best_tool and best_to_amount_hr are populated
+      if (goodAlts.length > 0) {
+        const sortedAlts = [...goodAlts].sort((a, b) => (b.toAmountHr ?? 0) - (a.toAmountHr ?? 0));
+        bestAmt = sortedAlts[0]!.toAmountHr ?? null;
+        sortedAlts.forEach((alt, idx) => {
+          offerRows.push({
+            source: "routes", rank_by_to_amount: idx + 1,
+            tool: alt.tool ?? null,
+            to_amount: alt.toAmount ?? null,
+            to_amount_hr: alt.toAmountHr ?? null,
+            to_amount_usd: alt.toAmountUsd ?? null,
+            gas_cost_usd: alt.gasCostUsd ?? null,
+            fee_usd: alt.feeUsd ?? null,
+            effective_rate: alt.toAmountHr != null ? alt.toAmountHr / r.fromAmountHr : null,
+            raw_json: alt.rawJson,
+          });
+        });
+      }
       if (intentOk && intentResult) {
         offerRows.push({
           source: "intent", rank_by_to_amount: null,
@@ -123,19 +140,6 @@ export async function runMatrix(opts: RunMatrixOpts): Promise<RunSummary> {
           effective_rate: intentResult.toAmountHr != null
             ? intentResult.toAmountHr / r.fromAmountHr : null,
           raw_json: intentResult.rawJson,
-        });
-      }
-      for (const alt of goodAlts) {
-        offerRows.push({
-          source: "routes", rank_by_to_amount: null,
-          tool: alt.tool ?? null,
-          to_amount: alt.toAmount ?? null,
-          to_amount_hr: alt.toAmountHr ?? null,
-          to_amount_usd: alt.toAmountUsd ?? null,
-          gas_cost_usd: alt.gasCostUsd ?? null,
-          fee_usd: alt.feeUsd ?? null,
-          effective_rate: alt.toAmountHr != null ? alt.toAmountHr / r.fromAmountHr : null,
-          raw_json: alt.rawJson,
         });
       }
     }

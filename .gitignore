@@ -4,6 +4,8 @@ node_modules/
 dist/
 db/quotes.db
 db/quotes.db-journal
+db/quotes.db-shm
+db/quotes.db-wal
 .vite/
 .env
 .env.local

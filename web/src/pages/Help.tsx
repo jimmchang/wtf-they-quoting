@@ -1,101 +1,107 @@
 export default function Help() {
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-2xl space-y-10">
       <div>
-        <h1 className="text-lg font-semibold mb-1">How to use LI.FI Quote Tracker</h1>
+        <h1 className="text-lg font-semibold mb-1">LI.FI Quote Tracker</h1>
         <p className="text-sm text-[--color-muted-foreground]">
-          A local tool for tracking how LI.FI's intent quotes rank against alternative routes over time.
+          Tracks how lifiIntents quotes rank against all competing bridges on each route, size, and chain pair.
         </p>
       </div>
 
-      <Section title="Collecting data">
-        <p>There are two collector scripts. Run them from the repo root:</p>
-        <CodeBlock>{`# Pull all 84 routes (3 chains × 4 pairs × sizes) — takes ~3 min
+      <div className="space-y-6">
+        <Step n={1} title="Set up environment">
+          <p>Create a <code className={mono}>.env</code> file in the repo root with your LI.FI API key. Without it, the collector is rate limited to 100 RPM and will fail mid-run:</p>
+          <CodeBlock>{`NEXT_PUBLIC_LIFI_API_KEY=your-key-here
+INTEGRATOR_STRING=li.fi-solver`}</CodeBlock>
+          <p>The UI itself doesn't need the key — only the collector does when fetching quotes from the LI.FI API.</p>
+        </Step>
+
+        <Step n={2} title="Start the UI">
+          <p>Open two terminals from the repo root and run one command in each:</p>
+          <CodeBlock>{`# Terminal 1 — API server (port 5174, reads the DB)
+pnpm serve
+
+# Terminal 2 — Vite frontend (port 5173)
+pnpm web`}</CodeBlock>
+          <p>Then open <strong>http://localhost:5173</strong>.</p>
+        </Step>
+
+        <Step n={3} title="Collect quotes">
+          <p>Run the collector to pull fresh quotes from the LI.FI API. Each run calls <code className={mono}>getRoutes</code> once per route — the lifiIntents offer is extracted from the results and compared against all other bridges.</p>
+          <CodeBlock>{`# Pull all 84 routes (~3 min)
 pnpm pull:daily
 
-# Pull a specific route ad-hoc
-pnpm pull:adhoc -- --pair USDC-USDC --from-chain 1 --to-chain 8453 --size 100
+# Pull a specific route
+pnpm pull:adhoc -- --pair USDC-USDC --from-chain 8453 --to-chain 42161 --size 100
 
-# Fan out over all sizes for a pair
-pnpm pull:adhoc -- --pair ETH-ETH --from-chain 1 --to-chain 42161
+# Fan out over all sizes for a pair/route
+pnpm pull:adhoc -- --pair ETH-ETH --from-chain 1 --to-chain 8453
 
 # Fan out over all chains for a pair + size
-pnpm pull:adhoc -- --pair USDT-USDT --size 1000`}</CodeBlock>
-        <p className="mt-2">
-          Each run fetches two quotes per route: an <strong>intent quote</strong> (via{" "}
-          <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">@lifi/cli</code>) and an{" "}
-          <strong>alternatives list</strong> (via <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">@lifi/sdk getRoutes</code>).
-          Results are stored in <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">db/quotes.db</code>.
-        </p>
-      </Section>
+pnpm pull:adhoc -- --pair USDC-USDC --size 1000`}</CodeBlock>
+          <p>Results are written to <code className={mono}>db/quotes.db</code>. Refresh the UI to see them.</p>
+        </Step>
 
-      <Section title="Starting the UI">
-        <p>Open two terminals from the repo root:</p>
-        <CodeBlock>{`# Terminal 1 — API server (port 5174)
-pnpm server
+        <Step n={4} title="Read the Snapshot">
+          <p>One row per (pair, route, size) for the selected run:</p>
+          <ul className="list-disc list-inside space-y-1 mt-1">
+            <li><strong>Rank</strong> — where lifiIntents finished among all bridges by gross output. <span className="text-[--color-accent] font-semibold">#1</span> = intent won.</li>
+            <li><strong>Δ bps</strong> — basis points lifiIntents trails the best offer. 0 = tied for best.</li>
+            <li><strong>Intent quote</strong> — the lifiIntents output amount.</li>
+            <li><strong>Best quote</strong> — the output amount of the best offer (lifiIntents or otherwise).</li>
+            <li><strong>Best tool</strong> — the bridge that returned the best output.</li>
+            <li><strong>Alts</strong> — number of non-lifiIntents offers in the comparison pool.</li>
+          </ul>
+          <p className="mt-2">If lifiIntents isn't offered on a route (e.g. USDT-USDT, most ETH-ETH routes), Rank and Δ bps are empty but Best quote / Best tool are still populated from the alternatives.</p>
+          <p>Use the Pair / Route / Size filters to narrow the table. Click <strong>chart →</strong> to open the timeseries for any row.</p>
+        </Step>
 
-# Terminal 2 — Vite dev server (port 5173)
-pnpm web`}</CodeBlock>
-        <p className="mt-2">Then open <strong>http://localhost:5173</strong>.</p>
-      </Section>
+        <Step n={5} title="Read the Timeseries">
+          <p>Shows a single (pair, route, size) over time — useful after multiple daily runs:</p>
+          <ul className="list-disc list-inside space-y-1 mt-1">
+            <li><strong>Output amount</strong> — lifiIntents output vs best alternative. Divergence = intent is losing on this route.</li>
+            <li><strong>Rank</strong> — step chart of lifiIntents rank. Lower is better. Sustained rank &gt; 1 means a bridge consistently beats intent.</li>
+          </ul>
+          <p className="mt-2">Use the size selector to switch between amount sweeps for the same pair and route.</p>
+        </Step>
 
-      <Section title="Resetting the database">
-        <p>To start fresh with clean data, follow this order:</p>
-        <ol className="list-decimal list-inside space-y-1 mt-2 text-sm">
-          <li><strong>Stop the server</strong> (ctrl+C in the server terminal)</li>
-          <li><strong>Delete the DB files</strong></li>
-          <li><strong>Run the collector</strong> to populate fresh data</li>
-          <li><strong>Restart the server</strong></li>
-        </ol>
-        <CodeBlock className="mt-3">{`rm -f db/quotes.db db/quotes.db-shm db/quotes.db-wal
+        <Step n={6} title="Resetting the database">
+          <p>To start fresh, always stop the server first — it holds the DB file open and won't see a new file until restarted:</p>
+          <CodeBlock>{`# 1. Stop the server (ctrl+C in Terminal 1)
+# 2. Delete the DB
+rm -f db/quotes.db db/quotes.db-shm db/quotes.db-wal
+# 3. Collect fresh data
 pnpm pull:daily
-pnpm server`}</CodeBlock>
-        <p className="mt-2 text-[--color-muted-foreground]">
-          <strong>Why this order matters:</strong> the server opens <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">quotes.db</code> at startup and holds the file open for the lifetime of the process. If you delete the DB while the server is running, the server keeps reading the old deleted file — new data written by the collector goes into a new file the server doesn't know about. Always stop the server before deleting.
-        </p>
-      </Section>
-
-      <Section title="Snapshot page">
-        <p>
-          Shows every route from the selected run — one row per (pair, route, size) — with:
-        </p>
-        <ul className="list-disc list-inside space-y-1 mt-2 text-sm">
-          <li><strong>Rank</strong> — where the intent quote finished among all offers, sorted by output amount. <span className="text-[--color-accent] font-medium">#1</span> = intent won.</li>
-          <li><strong>Δ bps</strong> — how many basis points the intent output trails the best offer. 0 = tied for best.</li>
-          <li><strong>Intent tool / Best tool</strong> — which bridge or aggregator powered each quote.</li>
-          <li><strong>Status</strong> — <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">ok</code> both calls succeeded · <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">partial</code> one call failed · <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">error</code> both failed.</li>
-        </ul>
-        <p className="mt-2">Click <strong>chart →</strong> on any row to open the timeseries for that route.</p>
-        <p className="mt-2">Use the run selector in the top right to switch between historical runs.</p>
-      </Section>
-
-      <Section title="Timeseries page">
-        <p>Two charts for a single (pair, route, size) over time:</p>
-        <ul className="list-disc list-inside space-y-1 mt-2 text-sm">
-          <li><strong>Output amount</strong> — intent output (green) vs best alternative (red dashed). Divergence = intent is losing on this route.</li>
-          <li><strong>Rank</strong> — step chart of intent rank. Lower = better. Sustained rank &gt; 1 means something consistently beats intent.</li>
-        </ul>
-        <p className="mt-2">Use the size selector to switch between amount sweeps for the same route pair.</p>
-      </Section>
-
-      <Section title="Using /quote in Claude Code">
-        <p>
-          Inside this repo, Claude Code has a <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">/quote</code> slash command that translates natural language into collector invocations:
-        </p>
-        <CodeBlock>{`/quote pull USDC from Ethereum to Base at 1000
-/quote run daily
-/quote ETH to Arbitrum, 0.1 ETH`}</CodeBlock>
-      </Section>
+# 4. Restart the server
+pnpm serve`}</CodeBlock>
+        </Step>
+      </div>
 
       <Section title="Configured routes">
-        <p>The route matrix is defined in <code className="font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded">config.json</code> at the repo root:</p>
-        <ul className="list-disc list-inside space-y-1 mt-2 text-sm">
+        <ul className="list-disc list-inside space-y-1">
           <li><strong>Chains</strong>: Ethereum (1), Base (8453), Arbitrum (42161)</li>
           <li><strong>Pairs</strong>: USDC-USDC, USDT-USDT, ETH-ETH, WETH-ETH</li>
           <li><strong>Sizes</strong>: stables at 10 / 100 / 1,000 / 10,000 · ETH/WETH at 0.01 / 0.1 / 1</li>
           <li><strong>Total</strong>: 84 routes per daily run · ~3 min at 1 req/s</li>
         </ul>
+        <p className="mt-2">Edit <code className={mono}>config.json</code> at the repo root to change the matrix.</p>
       </Section>
+    </div>
+  );
+}
+
+const mono = "font-mono text-xs bg-[--color-muted] px-1 py-0.5 rounded";
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-4">
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[--color-accent]/10 border border-[--color-accent]/30 flex items-center justify-center">
+        <span className="text-xs font-semibold font-mono text-[--color-accent]">{n}</span>
+      </div>
+      <div className="flex-1 space-y-2 pt-0.5">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <div className="text-sm text-[--color-foreground] space-y-2">{children}</div>
+      </div>
     </div>
   );
 }
@@ -111,9 +117,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function CodeBlock({ children, className }: { children: string; className?: string }) {
+function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className={`bg-[--color-muted] border border-[--color-border] rounded-lg px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre${className ? ` ${className}` : ""}`}>
+    <pre className="bg-[--color-muted] border border-[--color-border] rounded-lg px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre">
       {children}
     </pre>
   );
