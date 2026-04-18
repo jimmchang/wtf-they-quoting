@@ -1,6 +1,6 @@
 # LI.FI Quote Tracker
 
-A local tool that tracks how **lifiIntents** quotes compare to every competing bridge/solver returned by the LI.FI routes API — across chains, pairs, and sizes.
+A local tool that tracks how **lifiIntents** quotes compare to every competing bridge/solver returned by the LI.FI routes API — across chains, pairs, and sizes
 
 For each route, it calls `@lifi/sdk getRoutes` once. The `lifiIntents` offer is extracted as the intent side of the comparison; all other returned offers (Across, Stargate, CCTP, Relay, Eco, Mayan, etc.) are the alternatives. Results land in SQLite; a local web UI shows snapshot rankings and timeseries.
 
