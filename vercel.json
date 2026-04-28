@@ -3,5 +3,11 @@
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "cd \"$(git rev-parse --show-toplevel)\" && bash scripts/vercel-build.sh",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "data": false
+    }
+  }
 }
