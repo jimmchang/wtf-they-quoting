@@ -40,11 +40,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore previous DB
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p db
+          LATEST=$(gh run list --workflow=daily-pull.yml --status=success --branch=main --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$LATEST" ]; then
+            echo "no previous successful run, starting with empty DB"
+            exit 0
+          fi
+          echo "restoring quotes-db from run $LATEST"
+          gh run download "$LATEST" -n quotes-db -D db/ 2>&1 || echo "no quotes-db artifact yet, starting fresh"
+          ls -la db/ || true
+
       - name: Pull daily quotes
         env:
           NEXT_PUBLIC_LIFI_API_KEY: ${{ secrets.NEXT_PUBLIC_LIFI_API_KEY }}
           INTEGRATOR_STRING: ${{ vars.INTEGRATOR_STRING }}
         run: pnpm pull:daily
+
+      - name: Upload DB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quotes-db
+          path: db/quotes.db
+          retention-days: 90
+          if-no-files-found: error
 
       - name: Build snapshots
         run: pnpm snapshots
