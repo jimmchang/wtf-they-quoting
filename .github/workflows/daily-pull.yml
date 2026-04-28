@@ -15,6 +15,8 @@ concurrency:
 jobs:
   pull:
     runs-on: ubuntu-latest
+    env:
+      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -58,7 +60,5 @@ jobs:
           git push -fq "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:data
 
       - name: Trigger Vercel redeploy
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
-        env:
-          URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: curl -fsS -X POST "$URL"
+        if: ${{ env.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
