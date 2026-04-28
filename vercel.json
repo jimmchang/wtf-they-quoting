@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "bash scripts/vercel-build.sh",
+  "buildCommand": "cd \"$(git rev-parse --show-toplevel)\" && bash scripts/vercel-build.sh",
   "outputDirectory": "dist"
 }
