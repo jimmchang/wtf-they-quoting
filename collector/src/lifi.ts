@@ -16,8 +16,8 @@ let _sdkReady = false;
 function ensureSdkConfig() {
   if (_sdkReady) return;
   createConfig({
-    integrator: process.env.INTEGRATOR_STRING ?? "wtf-they-quoting",
-    apiKey: process.env.NEXT_PUBLIC_LIFI_API_KEY,
+    integrator: process.env.INTEGRATOR_STRING || "wtf-they-quoting",
+    apiKey: process.env.NEXT_PUBLIC_LIFI_API_KEY || undefined,
   });
   _sdkReady = true;
 }
