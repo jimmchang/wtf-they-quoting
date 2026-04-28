@@ -40,7 +40,7 @@ jobs:
       - name: Pull daily quotes
         env:
           NEXT_PUBLIC_LIFI_API_KEY: ${{ secrets.NEXT_PUBLIC_LIFI_API_KEY }}
-          INTEGRATOR_STRING: ${{ secrets.INTEGRATOR_STRING }}
+          INTEGRATOR_STRING: ${{ vars.INTEGRATOR_STRING }}
         run: pnpm pull:daily
 
       - name: Build snapshots
