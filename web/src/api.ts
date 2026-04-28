@@ -52,15 +52,19 @@ async function get<T>(path: string): Promise<T> {
   return r.json();
 }
 
+function timeseriesKey(pair: string, from: number, to: number, size: number) {
+  return `${encodeURIComponent(pair)}__${from}__${to}__${size}`;
+}
+
 export const api = {
-  runs: () => get<{ runs: RunDTO[] }>("/api/runs"),
+  runs: () => get<{ runs: RunDTO[] }>("/data/runs.json"),
   snapshot: (runId?: string) =>
     get<{ runId: string; rows: SnapshotRowDTO[] }>(
-      runId ? `/api/snapshot?run_id=${encodeURIComponent(runId)}` : "/api/snapshot"
+      runId ? `/data/snapshot/${encodeURIComponent(runId)}.json` : "/data/snapshot/latest.json"
     ),
   timeseries: (p: { pair: string; from: number; to: number; size: number }) =>
     get<{ points: TimeseriesPoint[] }>(
-      `/api/timeseries?pair=${encodeURIComponent(p.pair)}&from=${p.from}&to=${p.to}&size=${p.size}`
+      `/data/timeseries/${timeseriesKey(p.pair, p.from, p.to, p.size)}.json`
     ),
-  routes: () => get<{ routes: RouteKey[] }>("/api/routes"),
+  routes: () => get<{ routes: RouteKey[] }>("/data/routes.json"),
 };

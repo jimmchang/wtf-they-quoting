@@ -7,6 +7,7 @@
     "test": "pnpm -r test",
     "pull:daily": "pnpm --filter collector daily",
     "pull:adhoc": "pnpm --filter collector adhoc",
+    "snapshots": "pnpm --filter server snapshots",
     "serve": "tsx server/src/index.ts",
     "web": "pnpm --filter web dev",
     "dev": "concurrently -k \"pnpm run serve\" \"pnpm run web\""

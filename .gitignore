@@ -6,6 +6,7 @@ db/quotes.db
 db/quotes.db-journal
 db/quotes.db-shm
 db/quotes.db-wal
+web/public/data/
 .vite/
 .env
 .env.local
