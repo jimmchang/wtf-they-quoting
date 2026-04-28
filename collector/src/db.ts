@@ -53,7 +53,7 @@ export function insertRequestWithOffers(
   })();
 }
 
-export interface RunSummary {
+interface RunSummary {
   run_id: string;
   run_kind: RunKind;
   ts: number;

@@ -6,7 +6,7 @@ import { rankOffers, LIFI_INTENT_TOOL } from "./lifi.js";
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export interface RunMatrixOpts {
+interface RunMatrixOpts {
   db: DB;
   routes: RouteRequest[];
   runKind: RunKind;
@@ -17,7 +17,7 @@ export interface RunMatrixOpts {
   onProgress?: (done: number, total: number) => void;
 }
 
-export interface RunSummary {
+interface RunSummary {
   runId: string;
   ok: number;
   partial: number;

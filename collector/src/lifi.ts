@@ -119,7 +119,7 @@ export async function fetchAlternatives(
 
 // ── Ranking ────────────────────────────────────────────────────
 
-export interface RankResult {
+interface RankResult {
   intentRank: number;
   best_to_amount_hr: number;
   delta_hr: number;

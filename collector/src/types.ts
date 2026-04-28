@@ -1,10 +1,10 @@
 export type ChainId = number;
 export type Address = `0x${string}`;
 export type RunKind = "daily" | "adhoc";
-export type RequestStatus = "ok" | "partial" | "error";
-export type OfferSource = "intent" | "routes";
+type RequestStatus = "ok" | "partial" | "error";
+type OfferSource = "intent" | "routes";
 
-export interface AssetPair {
+interface AssetPair {
   name: string;
   from: string;
   to: string;

@@ -39,7 +39,7 @@ export interface TimeseriesPoint {
   status: string;
 }
 
-export interface RouteKey {
+interface RouteKey {
   pair_name: string;
   from_chain: number;
   to_chain: number;
