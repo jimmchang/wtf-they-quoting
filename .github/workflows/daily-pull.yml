@@ -55,6 +55,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cd web/public/data
+          # disable any Vercel project from auto-deploying this branch
+          printf '%s\n' '{"git":{"deploymentEnabled":false}}' > vercel.json
           git init -q -b data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
