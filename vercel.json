@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "mkdir -p web/public/data && (git fetch --depth=1 origin data 2>/dev/null && git --work-tree=web/public/data checkout origin/data -- . || echo 'no data branch yet, building with empty data dir') && pnpm --filter web build && rm -rf dist && cp -R web/dist dist",
+  "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "dist"
 }
