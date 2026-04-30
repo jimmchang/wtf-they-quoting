@@ -132,8 +132,8 @@ export default function Snapshot() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-[--color-border] overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="-mx-6 sm:mx-0 border-y sm:border-x sm:rounded-lg border-[--color-border] overflow-x-auto">
+        <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="border-b border-[--color-border] bg-[--color-muted]">
               {["Pair", "Route", "Size", "Rank", "Δ bps", "Intent quote", "Best quote", "Best tool", "Alts", ""].map(h => (
